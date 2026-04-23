@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>📊 2020中国人口城镇化可视化系统 | 省级专题图</title>
+    <!-- ArcGIS API for JavaScript 4.28 -->
+    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.28/"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'Roboto', 'Poppins', system-ui, sans-serif;
+            background: #eef2f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+        }
+        /* 页眉 */
+        .app-header {
+            background: linear-gradient(135deg, #0b4d3b 0%, #1a6d53 100%);
+            color: white;
+            padding: 0.7rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            z-index: 30;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .logo-area h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo-area h1:before {
+            content: "📊";
+            font-size: 1.7rem;
+        }
+        .subhead {
+            font-size: 0.75rem;
+            opacity: 0.9;
+            margin-top: 4px;
+            letter-spacing: 0.5px;
+        }
+        .header-badge {
+            background: rgba(255,255,240,0.2);
+            backdrop-filter: blur(4px);
+            padding: 0.3rem 1rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .header-badge:before {
+            content: "🗺️ ";
+        }
+        /* 主体布局 */
+        .main-layout {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            padding: 12px;
+            gap: 14px;
+        }
+        /* 地图区域 */
+        .map-area {
+            flex: 1;
+            position: relative;
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255,255,255,0.6);
+            background: #d4dfe9;
+        }
+        #viewDiv {
+            width: 100%;
+            height: 100%;
+        }
+        /* 右侧面板 */
+        .basemap-panel {
+            width: 350px;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(16px);
+            border-radius: 28px;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            border: 1px solid rgba(255,255,255,0.7);
+        }
+        .basemap-panel::-webkit-scrollbar {
+            width: 5px;
+        }
+        .panel-card {
+            background: rgba(250, 252, 255, 0.85);
+            border-radius: 24px;
+            margin: 16px 16px 12px 16px;
+            padding: 6px 0 14px 0;
+            backdrop-filter: blur(4px);
+        }
+        .card-title {
+            font-weight: 700;
+            font-size: 1rem;
+            padding: 8px 16px 4px 18px;
+            border-left: 4px solid #2c7a5e;
+            color: #1e4a3b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .widget-container {
+            padding: 4px 12px 12px 12px;
+        }
+        /* 实用按钮样式 */
+        .action-btn {
+            background: white;
+            border: none;
+            border-radius: 40px;
+            padding: 8px 16px;
+            margin: 8px 16px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: 0.2s;
+        }
+        .action-btn:hover {
+            background: #eef4ff;
+            transform: scale(0.98);
+        }
+        .esri-widget {
+            border-radius: 20px !important;
+            font-family: inherit !important;
+        }
+        .esri-search {
+            border-radius: 40px !important;
+        }
+        .esri-scale-bar {
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(8px);
+            padding: 4px 12px;
+            border-radius: 28px !important;
+        }
+        .esri-legend {
+            background: rgba(255,255,255,0.85);
+            border-radius: 20px !important;
+            max-height: 260px;
+        }
+        /* 自定义工具栏 */
+        .custom-toolbar {
+            position: absolute;
+            top: 100px;
+            right: 12px;
+            z-index: 40;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .tool-btn {
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(8px);
+            border: none;
+            border-radius: 40px;
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tool-btn.active {
+            background: #2c7a5e;
+            color: white;
+        }
+        .tool-btn:hover {
+            background: white;
+            transform: scale(0.96);
+        }
+        /* 加载动画 */
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0b3d31, #1c6d55);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(3px);
+            transition: opacity 1s ease;
+            opacity: 1;
+            pointer-events: none;
+            color: white;
+            text-align: center;
+        }
+        .splash-content {
+            background: rgba(0,0,0,0.55);
+            padding: 2rem 2.5rem;
+            border-radius: 48px;
+            backdrop-filter: blur(8px);
+            max-width: 550px;
+            animation: fadeInUp 0.8s ease-out;
+        }
+        .splash-content h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .hide-splash {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.8s, visibility 0s 0.8s;
+        }
+        .map-note {
+            position: absolute;
+            bottom: 12px;
+            left: 16px;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(5px);
+            color: white;
+            font-size: 10px;
+            padding: 4px 12px;
+            border-radius: 40px;
+            pointer-events: none;
+            z-index: 20;
+        }
+        .map-note:before {
+            content: "📌 ";
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="app-header">
+        <div class="logo-area">
+            <h1>2020年中国各省常住人口与城镇化水平空间可视化系统</h1>
+            <div class="subhead">🏙️ GeoSceneOnline 专题数据 | 📈 城镇率 · 👥 常住人口数量 | 🗺️ 省级统计图</div>
+        </div>
+        <div class="header-badge">权威数据 · 空间洞察</div>
+    </div>
+
+    <div class="main-layout">
+        <div class="map-area">
+            <div id="viewDiv"></div>
+            <div class="custom-toolbar">
+                <button id="markerBtn" class="tool-btn">📍 添加标记</button>
+                <button id="locationBtn" class="tool-btn">📍 我的位置</button>
+                <button id="resetViewBtn" class="tool-btn">🗺️ 重置视图</button>
+            </div>
+            <div class="map-note">点击地图要素查看详情 | 右侧切换底图与图层 | 添加标记/定位/重置</div>
+        </div>
+
+        <div class="basemap-panel">
+            <div class="panel-card">
+                <div class="card-title">🗺️ 底图库 · 随心切换 🎨</div>
+                <div class="widget-container" id="basemapGalleryDiv"></div>
+            </div>
+            <div class="panel-card">
+                <div class="card-title">📂 图层控制 ⚙️</div>
+                <div class="widget-container" id="layerListDiv"></div>
+                <div style="padding: 0 16px 12px 16px; font-size: 11px; color: #4a627a;">
+                    ✔️ 城镇率 📊 | ✔️ 常住人口数量 👥
+                </div>
+            </div>
+            <div class="panel-card">
+                <div class="card-title">🛠️ 实用工具</div>
+                <button id="markerBtnPanel" class="action-btn">📍 添加标记（点击地图）</button>
+                <button id="resetViewBtnPanel" class="action-btn">🗺️ 重置地图视图（中国全图）</button>
+                <button id="clearGraphicsBtn" class="action-btn">🧹 清除所有标记</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="splashScreen" class="splash-screen">
+    <div class="splash-content">
+        <h2>🇨🇳 中国人口 · 城镇化进程 📈</h2>
+        <p>🏙️ 2020年第七次全国人口普查数据显示，中国常住人口城镇化率已达 <strong>63.89%</strong>。</p>
+        <p>🗺️ 本系统基于 GeoSceneOnline 发布的省级专题图层，直观展示各省常住人口数量与城镇化水平。</p>
+        <p>🌄 从东部沿海到西部内陆，空间分布差异显著，数据可视化助力区域发展研究。</p>
+        <p>📊 一图览尽人口格局，数据驱动科学决策。</p>
+        <div style="margin-top: 20px; font-size: 0.8rem;">✨ 地图加载中 · 数据可视化之旅即将开启 ✨</div>
+    </div>
+</div>
+
+<script>
+    require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/widgets/ScaleBar",
+        "esri/widgets/Legend",
+        "esri/widgets/Search",
+        "esri/widgets/LayerList",
+        "esri/widgets/BasemapGallery",
+        "esri/Graphic",
+        "esri/geometry/Point",
+        "esri/geometry/Point",
+        "esri/layers/TileLayer",
+        "esri/Basemap",
+        "esri/config"
+    ], function(Map, MapView, FeatureLayer, ScaleBar, Legend, Search, LayerList, BasemapGallery, Graphic, Point, Point, TileLayer, Basemap, esriConfig) {
+        
+        esriConfig.portalUrl = "https://www.geosceneonline.cn/geoscene";
+        
+        // 专题图层
+        const urbanizationLayer = new FeatureLayer({
+            url: "https://www.geosceneonline.cn/server/rest/services/Hosted/exp2_new/FeatureServer/0",
+            title: "📊 城镇率",
+            outFields: ["省", "2020_城"],
+            popupTemplate: {
+                title: "{省}",
+                content: "🏙️ 城镇化率: {2020_城}%"
+            }
+        });
+        
+        const populationLayer = new FeatureLayer({
+            url: "https://www.geosceneonline.cn/server/rest/services/Hosted/exp2_new/FeatureServer/1",
+            title: "👥 常住人口数量",
+            outFields: ["省", "SUM_2020"],
+            popupTemplate: {
+                title: "{省}",
+                content: "👥 常住人口: {SUM_2020} 万人"
+            }
+        });
+        
+        // 默认底图：OpenStreetMap
+        const osmLayer = new TileLayer({
+            urlTemplate: "https://{subDomain}.tile.openstreetmap.org/{level}/{col}/{row}.png",
+            subDomains: ["a", "b", "c"]
+        });
+        const osmBasemap = new Basemap({ baseLayers: [osmLayer], title: "OpenStreetMap" });
+        
+        const map = new Map({
+            basemap: osmBasemap,
+            layers: [populationLayer, urbanizationLayer]
+        });
+        
+        const view = new MapView({
+            container: "viewDiv",
+            map: map,
+            center: [104.0, 35.0],
+            zoom: 4,
+            constraints: { minZoom: 3, maxZoom: 12 }
+        });
+        
+        // 基础控件
+        const scaleBar = new ScaleBar({ view: view, unit: "metric", style: "ruler" });
+        view.ui.add(scaleBar, "bottom-left");
+        
+        const legend = new Legend({ view: view });
+        view.ui.add(legend, "bottom-right");
+        
+        const searchWidget = new Search({ view: view, includeDefaultSources: true, placeholder: "🔍 搜索省份或城市..." });
+        view.ui.add(searchWidget, "top-left");
+        
+        const layerList = new LayerList({ view: view });
+        const layerListDiv = document.getElementById("layerListDiv");
+        if (layerListDiv) layerList.container = layerListDiv;
+        
+        const basemapGallery = new BasemapGallery({ view: view });
+        const basemapDiv = document.getElementById("basemapGalleryDiv");
+        if (basemapDiv) basemapGallery.container = basemapDiv;
+        
+        // ========= 标记工具 =========
+        let markerModeActive = false;
+        const markerBtn = document.getElementById("markerBtn");
+        const markerBtnPanel = document.getElementById("markerBtnPanel");
+        
+        // 标记点符号
+        const markerSymbol = {
+            type: "simple-marker",
+            color: [255, 0, 0, 0.8],
+            size: 14,
+            outline: { color: "white", width: 2 }
+        };
+        
+        // 切换标记模式
+        function toggleMarkerMode() {
+            markerModeActive = !markerModeActive;
+            if (markerModeActive) {
+                markerBtn.classList.add("active");
+                markerBtnPanel.style.background = "#2c7a5e";
+                markerBtnPanel.style.color = "white";
+                view.container.style.cursor = "crosshair";
+            } else {
+                markerBtn.classList.remove("active");
+                markerBtnPanel.style.background = "white";
+                markerBtnPanel.style.color = "black";
+                view.container.style.cursor = "";
+            }
+        }
+        
+        markerBtn.addEventListener("click", toggleMarkerMode);
+        markerBtnPanel.addEventListener("click", toggleMarkerMode);
+        
+        // 点击地图添加标记（仅在标记模式下）
+        view.on("click", (event) => {
+            if (markerModeActive) {
+                // 添加标记点
+                const point = new Point({
+                    longitude: event.mapPoint.longitude,
+                    latitude: event.mapPoint.latitude
+                });
+                const graphic = new Graphic({
+                    geometry: point,
+                    symbol: markerSymbol,
+                    attributes: { id: Date.now() }
+                });
+                view.graphics.add(graphic);
+                // 可选：短暂显示提示
+                console.log("已添加标记点", event.mapPoint);
+            } else {
+                // 非标记模式，正常弹出省份信息（由 FeatureLayer 的 popupTemplate 处理）
+                // 不需要额外代码，点击图层要素会自动弹出
+            }
+        });
+        
+        // ========= 定位 =========
+        const locationBtn = document.getElementById("locationBtn");
+        locationBtn.addEventListener("click", () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        view.goTo({ center: [longitude, latitude], zoom: 12, duration: 800 });
+                        const pointGraphic = new Graphic({
+                            geometry: new Point({ longitude, latitude }),
+                            symbol: { type: "simple-marker", color: [230, 80, 60, 1], size: 16, outline: { color: "white", width: 2 } }
+                        });
+                        // 临时显示定位标记，3秒后自动清除（但不影响用户添加的标记）
+                        const tempGraphic = pointGraphic;
+                        view.graphics.add(tempGraphic);
+                        setTimeout(() => view.graphics.remove(tempGraphic), 3000);
+                    },
+                    () => alert("无法获取您的位置，请检查权限设置。")
+                );
+            } else {
+                alert("您的浏览器不支持地理定位。");
+            }
+        });
+        
+        // ========= 重置视图（中国全图） =========
+        function resetView() {
+            view.goTo({
+                center: [104.0, 35.0],
+                zoom: 4,
+                duration: 500
+            });
+        }
+        const resetViewBtn = document.getElementById("resetViewBtn");
+        const resetViewBtnPanel = document.getElementById("resetViewBtnPanel");
+        resetViewBtn.addEventListener("click", resetView);
+        resetViewBtnPanel.addEventListener("click", resetView);
+        
+        // ========= 清除所有标记（包括定位临时标记和用户添加的标记） =========
+        const clearGraphicsBtn = document.getElementById("clearGraphicsBtn");
+        clearGraphicsBtn.addEventListener("click", () => {
+            view.graphics.removeAll();
+        });
+        
+        // 调试信息
+        view.when(() => {
+            console.log("✅ 地图加载完成，标记工具已就绪");
+            view.ui.move("zoom", "top-right");
+        });
+        
+        // 加载动画淡出
+        const splash = document.getElementById("splashScreen");
+        if (splash) setTimeout(() => splash.classList.add("hide-splash"), 2800);
+        
+        urbanizationLayer.catch(e => console.warn("城镇率图层加载提示", e));
+        populationLayer.catch(e => console.warn("人口图层加载提示", e));
+    });
+</script>
+</body>
+</html>
